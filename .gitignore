@@ -38,3 +38,5 @@ Release/
 Bond*/
 Microsoft.*/
 Newtonsoft.*/
+*.suo
+*.user
