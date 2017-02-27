@@ -27,3 +27,14 @@
 *.exe
 *.out
 *.app
+
+#Binary folders
+obj/
+bin/
+Debug/
+Release/
+
+#VS Stuff
+Bond*/
+Microsoft.*/
+Newtonsoft.*/
