@@ -8,7 +8,7 @@ Emotifier makes use of several REST-APIs you need to register for. Currently it 
 - Obtain your key of the Emotion API here: https://www.microsoft.com/cognitive-services/en-us/emotion-api
 - The key for the IBM Watson API can be found here: https://www.ibm.com/watson/developercloud/
 
-You need to register for these APIs and then put your credentials in an XML-file called APICredentials.xml. A sample can be found in the root directory of the application. The file with your credentials must then be put in the execution directory of the application.
+You need to register for these APIs and then put your credentials in an XML-file called ApiCredentials.xml. A sample can be found in the root directory of the application. The file with your credentials must then be put in the execution directory of the application.
 
 ### Camera
 The software requires a Microsoft Kinect v2 camera and the Kinect SDK. 
