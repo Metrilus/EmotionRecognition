@@ -3,7 +3,7 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 //------------------------------------------------------------------------------
-namespace Microsoft.Samples.Kinect.ColorBasics
+namespace Emotifier
 {
     using System;
     using System.ComponentModel;
@@ -19,9 +19,9 @@ namespace Microsoft.Samples.Kinect.ColorBasics
     using Microsoft.ProjectOxford.Emotion.Contract;
     using System.Drawing.Imaging;
     using System.Drawing;
-    using Metrilus.Util;
     using System.Linq;
     using System.Xml.Serialization;
+    using System.Runtime.InteropServices;
 
     /// <summary>
     /// Interaction logic for MainWindow
@@ -72,7 +72,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
         private Bitmap myBitmap;
         private Stopwatch stopwatchEmotionUpate = new Stopwatch();
         private int frameCnt = 0;
-        private APIcredentials apiCredentials;
+        private ApiCredentials apiCredentials;
         #endregion
 
         #region Audio processing fields
@@ -91,7 +91,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
         //private List<short> audioSamples;
         private MemoryStream audioSnippet;
         private int maxAudioSamples;
-        private Speech2Emotion.SpeechToEmotion s2e = new Speech2Emotion.SpeechToEmotion();
+        private SpeechToEmotionClient speechToEmotionClient;
         private Stopwatch stopwatchSpeechBubble = new Stopwatch();
         private Bitmap speechBubble = null;
         #endregion
@@ -102,19 +102,22 @@ namespace Microsoft.Samples.Kinect.ColorBasics
         /// </summary>
         public MainWindow()
         {
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(APIcredentials));
-            if (!File.Exists("APICredentials.xml"))
+            // Load credentials
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(ApiCredentials));
+            if (!File.Exists("ApiCredentials.xml"))
             {
-                MessageBox.Show("Please place file APICredentials.xml in your execution directory. See README for more instructions.");
+                MessageBox.Show("Please place file ApiCredentials.xml in your execution directory. See README for more instructions.");
                 Application.Current.Shutdown();
             }
 
-            using (StreamReader sr = new StreamReader("APICredentials.xml"))
+            using (StreamReader sr = new StreamReader("ApiCredentials.xml"))
             {
-                apiCredentials = (APIcredentials)xmlSerializer.Deserialize(sr);
+                apiCredentials = (ApiCredentials)xmlSerializer.Deserialize(sr);
             }
             emotionServiceClient = new EmotionServiceClient(apiCredentials.EmotionAPIKey);
-            s2e.TextEmotionRecognized += s2e_TextEmotionRecognized;
+            speechToEmotionClient = new SpeechToEmotionClient(apiCredentials.WatsonPassword, apiCredentials.WatsonUsername, apiCredentials.BingSubscriptionKey);
+
+            speechToEmotionClient.TextEmotionRecognized += s2e_TextEmotionRecognized;
             stopwatchEmotionUpate.Start();
             // get the kinectSensor object
             this.kinectSensor = KinectSensor.GetDefault();
@@ -167,7 +170,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
             this.InitializeComponent();
         }
 
-        void s2e_TextEmotionRecognized(object sender, Speech2Emotion.SpeechToEmotion.TextEmotionRecognizedEventArgs e)
+        void s2e_TextEmotionRecognized(object sender, SpeechToEmotionClient.TextEmotionRecognizedEventArgs e)
         {
             if (e.Emotions == null)
             {
@@ -312,14 +315,15 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                                 }
                                 stopwatchEmotionUpate.Restart();
                             }
-                            Point2f[] emoHeadPositions = null; 
+
+                            System.Drawing.PointF[] emoHeadPositions = null;
                             if (detectedEmotions != null)
                             {
-                                emoHeadPositions = new Point2f[detectedEmotions.Length];
+                                emoHeadPositions = new System.Drawing.PointF[detectedEmotions.Length];
 
                                 for (int i = 0; i < detectedEmotions.Length; i++)
                                 {
-                                    emoHeadPositions[i] = new Point2f(detectedEmotions[i].FaceRectangle.Left + detectedEmotions[i].FaceRectangle.Width / 2.0f, detectedEmotions[i].FaceRectangle.Top + detectedEmotions[i].FaceRectangle.Height / 2.0f);
+                                    emoHeadPositions[i] = new System.Drawing.PointF(detectedEmotions[i].FaceRectangle.Left + detectedEmotions[i].FaceRectangle.Width / 2.0f, detectedEmotions[i].FaceRectangle.Top + detectedEmotions[i].FaceRectangle.Height / 2.0f);
                                 }
                             }
                             foreach (var posDepth in headPositions)
@@ -334,8 +338,10 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                                     float minLength = float.MaxValue;
                                     for (int i = 0; i < detectedEmotions.Length; i++)
                                     {
-                                        Point2f diff = new Point2f(emoHeadPositions[i].X - pos.X, emoHeadPositions[i].Y - pos.Y);
-                                        float length = diff.GetLength();
+                                        System.Drawing.PointF diff = new System.Drawing.PointF(emoHeadPositions[i].X - pos.X, emoHeadPositions[i].Y - pos.Y);
+                                        float diffX = emoHeadPositions[i].X - pos.X;
+                                        float diffY = emoHeadPositions[i].Y - pos.Y;
+                                        float length = (float) Math.Sqrt(diffX * diffX + diffY * diffY);
                                         if (length < minLength)
                                         {
                                             headCount = i;
@@ -403,7 +409,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                         if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
                         {
                             bmpData = myBitmap.LockBits(new Rectangle(0,0, myBitmap.Width, myBitmap.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                            Metrilus.Util.UnmanagedMemory.CopyMemory(this.colorBitmap.BackBuffer, bmpData.Scan0, bmpData.Stride * bmpData.Height);
+                            CopyMemory(this.colorBitmap.BackBuffer, bmpData.Scan0, new IntPtr(bmpData.Stride * bmpData.Height));
 
                             myBitmap.UnlockBits(bmpData);
                             this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
@@ -414,6 +420,18 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                 }
             }
         }
+
+        /// <summary>
+        /// Copies a block of unmanaged memory from one location to another. (from MSDN)
+        /// </summary>
+        /// <param name="destination">A pointer to the starting address of the copied block's destination. (from MSDN)</param>
+        /// <param name="source">A pointer to the starting address of the block of memory to copy. (from MSDN)</param>
+        /// <param name="sizeInBytes">The size of the block of memory to copy, in bytes. (from MSDN)</param>
+        /// <remarks>
+        /// This actually uses MoveMemory, because CopyMemory has undefined results if the source and destination blocks overlap.
+        /// </remarks>
+        [DllImport("Kernel32.dll", EntryPoint = "RtlMoveMemory", SetLastError = false)]
+        public static extern void CopyMemory(IntPtr destination, IntPtr source, IntPtr sizeInBytes);
 
         #endregion
 
@@ -488,7 +506,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                         if (audioSnippet.Position >= maxAudioSamples)
                         {
                             // Send over data
-                            s2e.SendBytes(audioSnippet.GetBuffer());
+                            speechToEmotionClient.SendBytes(audioSnippet.GetBuffer());
                             audioSnippet.Seek(0, SeekOrigin.Begin);
                         }
                     }

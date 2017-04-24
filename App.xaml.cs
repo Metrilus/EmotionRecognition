@@ -4,7 +4,7 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-namespace Microsoft.Samples.Kinect.ColorBasics
+namespace Emotifier
 {
     using System;
     using System.Windows;
