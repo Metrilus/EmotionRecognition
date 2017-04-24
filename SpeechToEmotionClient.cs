@@ -11,9 +11,9 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Speech2Emotion
+namespace Emotifier
 {
-    public class SpeechToEmotion
+    public class SpeechToEmotionClient
     {
         public class TextEmotionRecognizedEventArgs
         {
@@ -38,7 +38,7 @@ namespace Speech2Emotion
         private MicrophoneRecognitionClient microphonoRegocnitionClient;
         public static readonly string Language = "en-US";
 
-        public SpeechToEmotion(string watsonPassword, string watsonUsername, string bingSubscriptionKey)
+        public SpeechToEmotionClient(string watsonPassword, string watsonUsername, string bingSubscriptionKey)
         {
             BingSpeechSubscriptionKey = bingSubscriptionKey;
             WatsonPassword = watsonPassword;
@@ -185,6 +185,11 @@ namespace Speech2Emotion
 
             Dictionary<string, double> tones = new Dictionary<string, double>();
             JObject analysisResult = Analyze(text);
+            if (null == analysisResult)
+            {
+                return null;
+            }
+
             JToken toneTokens = analysisResult["document_tone"]["tone_categories"][0]["tones"];
             foreach (JToken toneToken in toneTokens)
             {
